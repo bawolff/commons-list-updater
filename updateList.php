@@ -1,0 +1,47 @@
+<?php
+
+require( __DIR__ . '/db.php' );
+require( __DIR__ . '/edit.php' );
+
+$queries = [
+	'3d' => [ 'query' => "select page_id from image inner join page on page_namespace =6 and page_title = img_name where img_media_type = '3D' order by page_id asc" ],
+	'assessed' => [
+		'query' => "select page_id from templatelinks inner join page on  tl_from = page_id inner join image on img_name = page_title where  tl_target_id in ( select lt_id from linktarget where lt_namespace= 10 and lt_title in ( 'Assessments', 'Quality_image', 'Valued_image', 'Featured picture', 'DelistedPicture', 'Photo_challenge_winner' ) ) and tl_from_namespace = 6 and img_media_type in ( 'BITMAP', 'DRAWING' ) and img_minor_mime != 'gif' order by md5(page_id) asc;",
+		'chunks' => 3
+	],
+	// Might be interesting to work in files used on wiki, but have to exclude pronounciation, spoken wikipedia, etc.
+	'audio' => [ 'query' => "select page_id from templatelinks inner join page on  tl_from = page_id inner join image on img_name = page_title where  tl_target_id in ( select lt_id from linktarget where lt_namespace = 10 and lt_title in ( 'Assessments', 'Quality_image', 'Valued_image', 'Featured_picture', 'DelistedPicture', 'Photo_challenge_winner', 'Media_of_the_day', 'FM_promoted' ) ) and tl_from_namespace = 6 and (img_media_type = 'AUDIO') order by page_id asc" ],
+	'document' => [ 'query' => "select page_id from image inner join page on page_title = img_name and page_namespace=6  inner join globalimagelinks on img_name = gil_to and gil_page_namespace_id = 0 and gil_wiki not like 'wikimania%' and gil_wiki not like '%wikimedia' and gil_wiki != 'metawiki' and gil_wiki != 'outreachwiki' and gil_wiki != 'mediawikiwiki' and gil_wiki != 'wikidatawiki'  where img_media_type = 'OFFICE' group by 1 order by page_id asc" ],
+	// Featured by colour handled separately
+	'featured' => [ 'query' => "select page_id from categorylinks inner join page on cl_from = page_id inner join image on img_name = page_title inner join linktarget on lt_id = cl_target_id  where lt_namespace=14 and lt_title = 'Featured_pictures_on_Wikimedia_Commons' and cl_type = 'file' and img_media_type in ( 'BITMAP', 'DRAWING' ) and img_minor_mime != 'gif' order by page_id asc" ],
+	'video' => [ 'query' => "(select page_id from templatelinks inner join page on  tl_from = page_id inner join image on img_name = page_title where  tl_target_id in ( select lt_id from linktarget where lt_namespace= 10 and lt_title in ( 'Assessments', 'Quality_image', 'Valued_image', 'Featured_picture', 'DelistedPicture', 'Photo_challenge_winner', 'Media_of_the_day', 'FM_promoted' ) ) and tl_from_namespace = 6 and ((img_media_type = 'VIDEO') or (img_media_type = 'BITMAP' and img_major_mime = 'image' and img_minor_mime = 'gif'))) UNION (select page_id from image inner join page on page_namespace=6 and page_title=img_name  inner join globalimagelinks on img_name = gil_to and gil_page_namespace_id = 0 and gil_wiki not like 'wikimania%' and gil_wiki not like '%wikimedia' and gil_wiki != 'metawiki' and gil_wiki != 'outreachwiki' and gil_wiki != 'mediawikiwiki'  where img_media_type = 'VIDEO' ) order by page_id asc;" ]
+];
+
+function doStuff() {
+	global $queries;
+	$db = getCommonsDB();
+
+	foreach( $queries as $name => $info ) {
+		$res = $db->query( $info['query'] );
+		if ( !$res || $res->num_rows < 2 ) {
+			die( "Query error: " . $db->error );
+		}
+		$list = [];
+		while( $id = $res->fetch_column() ) {
+			$list[] = (int)$id;
+		}
+
+		if ( isset( $info['chunks'] ) ) {
+			$num = ceil( count( $list ) / $info['chunks'] );
+			$chunks = array_chunk( $list, $num );
+			foreach( $chunks as $i => $chunk ) {
+				$json = json_encode( $chunk, JSON_UNESCAPED_UNICODE );
+				savePage( "Module:Explore/$name/" . ($i+1) . ".json", $json );
+			}
+		} else {
+			$json = json_encode( $list, JSON_UNESCAPED_UNICODE );
+			savePage( "Module:Explore/$name.json", $json );
+		}
+	}
+}
+doStuff();
