@@ -6,7 +6,7 @@ require( __DIR__ . '/edit.php' );
 $queries = [
 	'3d' => [ 'query' => "select page_id from image inner join page on page_namespace =6 and page_title = img_name where img_media_type = '3D' order by page_id asc" ],
 	'assessed' => [
-		'query' => "select page_id from templatelinks inner join page on  tl_from = page_id where  tl_target_id in ( select lt_id from linktarget where lt_namespace= 10 and lt_title in ( 'Assessments', 'Quality_image', 'Valued_image', 'Featured picture', 'DelistedPicture', 'Photo_challenge_winner' ) ) and tl_from_namespace = 6 and lower(page_title) rlike '(?i)\\\.(webp|xcf|tiff?|a?png|jpg|jpeg?|svg)$' order by md5(page_id) asc limit 100",
+		'query' => "select page_id from templatelinks inner join page on  tl_from = page_id where  tl_target_id in ( select lt_id from linktarget where lt_namespace= 10 and lt_title in ( 'Assessments', 'Quality_image', 'Valued_image', 'Featured picture', 'DelistedPicture', 'Photo_challenge_winner' ) ) and tl_from_namespace = 6 and lower(page_title) rlike '(?i)\\\.(webp|xcf|tiff?|a?png|jpg|jpeg?|svg)$' order by md5(page_id) asc limit",
 		'chunks' => 3,
 		'db' => 'links'
 	],
